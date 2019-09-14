@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+  <style>
+    html,
+    body,
+    .container {
+      height: 100%;
+      width: 100%;
+      font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .column {
+      float: left;
+      width: 20%;
+      padding: 2px;
+    }
+
+    /* Clearfix (clear floats) */
+    .row::after {
+      content: "";
+      clear: both;
+      display: table;
+    }
+
+    #heading {
+      text-align: center;
+      font-style: bold;
+
+    }
+
+    .column {
+      line-height: 1.6;
+    }
+
+    .master {
+      position: relative;
+      padding-left: 80px;
+       padding-right: 80px;
+      width: 100%;
+      height:130px;
+      background: #fff;
+    }
+
+    .slave {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #slaveMask {
+      position: absolute;
+      top: 0px;
+      width: 100%;
+      height: 50px;
+      z-index: 5;
+      background: #fff;
+    }
+
+    /*
+    Modal styling
+    */
+    /* The Modal (background) */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 90;
+      padding-top: 100px;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgb(0, 0, 0);
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    /* Modal Content */
+    .modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      height: 80%;
+      position: relative;
+      border-radius: 5px;
+    }
+
+    /* The Close Button */
+    .close {
+      color: #aaaaaa;
+      text-decoration: none;
+      cursor: pointer;
+      position: absolute;
+      top: -30px;
+      right: 0px;
+      color: #fff;
+      border: 1px solid #fff;
+      height: 25px;
+      width: 25px;
+      border-radius: 50%;
+      line-height: 20px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: #000;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /*Map*/
+    #map {
+      height: 100%;
+    }
+    #frombusplace,#fromtrainplace,#walkingtime,#busarrivaltime,#busdeparturetime,#trainarrivaltime,#traindeparturetime {
+    white-space:normal; 
+    width: 100px; 
+    overflow: hidden;
+    text-overflow: ellipsis; 
+    
+   
+}
+/*Huge thanks to @tobiasahlin at http://tobiasahlin.com/spinkit/ */
+.spinner {
+ /* margin: 100px auto 0;
+  width: 70px;
+  text-align: center;*/
+  margin-left:90px;
+}
+
+.spinner > div {
+  width: 5px;
+  height: 5px;
+  background-color: #333;
+
+  border-radius: 100%;
+  display: inline-block;
+  -webkit-animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+  animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+}
+
+.spinner .bounce1 {
+  -webkit-animation-delay: -0.32s;
+  animation-delay: -0.32s;
+}
+
+.spinner .bounce2 {
+  -webkit-animation-delay: -0.16s;
+  animation-delay: -0.16s;
+}
+
+@-webkit-keyframes sk-bouncedelay {
+  0%, 80%, 100% { -webkit-transform: scale(0) }
+  40% { -webkit-transform: scale(1.0) }
+}
+
+@keyframes sk-bouncedelay {
+  0%, 80%, 100% { 
+    -webkit-transform: scale(0);
+    transform: scale(0);
+  } 40% { 
+    -webkit-transform: scale(1.0);
+    transform: scale(1.0);
+  }
+}
+  </style>
+  <script src="index.js">
+  </script>
+  <script>
+    //contants 
+    var SOURCE = "MCS+Solutions+Global+Headquarters+-+Belgium,+Sneeuwbeslaan,+Antwerp,+Belgium";
+    var DESTINATION = "antwerp+central+station";
+    var directionsService, directionsDisplay;
+
+    function initMap() {
+      directionsService = new google.maps.DirectionsService;
+      directionsDisplay = new google.maps.DirectionsRenderer;
+      initListeners();
+      var map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 19,
+        center: { lat: 51.1750667, lng: 4.3994854 }
+      });
+      directionsDisplay.setMap(map);
+    }
+
+    /*
+    initializes some UI listeners
+    */
+    function initListeners() {
+      var modalContainer = document.getElementById("directionsModal");
+      modalContainer.addEventListener("click", function (ev) {
+        if (ev && ev.target.className.indexOf("directions-modal") >= 0) {
+          //modal container tapped
+          hideDirections();
+        }
+      });
+    }
+
+    //Opens directions popup which uses Google's direction API to show direction between
+    //a source and a destination
+    function showDirections(mode, op) {
+      var popup = document.getElementById("directionsModal");
+      popup.style.display = 'block';
+      switch (mode) {
+        case "transit":
+          showRoute("TRANSIT");
+          break;
+        case "driving":
+          showRoute("DRIVING");
+          break;
+        case "bike":
+          showRoute("BICYCLING");
+          break;
+        case "walking":
+          showRoute("WALKING");
+          break;
+        default:
+          showRoute("TRANSIT");
+          break;
+      }
+    }
+
+    function hideDirections() {
+      var popup = document.getElementById("directionsModal");
+      popup.style.display = 'none';
+    }
+
+    function showRoute(mode) {
+      directionsService.route({
+        origin: SOURCE,
+        destination: DESTINATION,
+        travelMode: mode
+      }, function (response, status) {
+        if (status === 'OK') {
+          directionsDisplay.setDirections(response);
+        } else {
+          window.alert('Directions request failed due to ' + status);
+        }
+      });
+    }
+  </script>
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBoApnrKXe3XIvvmVWDDdmJRtYAKG2bxEw&callback=initMap">
+  </script>
+</head>
+
+<body onload="loadDoc()">
+  <!-- Directions popup -->
+  <!-- The Modal -->
+  <div id="directionsModal" class="modal directions-modal">
+    <!-- Modal content -->
+    <div class="modal-content">
+      <span class="close" onclick="hideDirections()">&times;</span>
+      <div id="map"></div>
+    </div>
+  </div>
+  <div class="container">
+    <h4 id="heading">ESTIMATED COMMUTE TIME</h4>
+    <div class="master">
+
+      <div class="row">
+        <div class="column">
+          <img src="bus.png" onclick="showDirections('transit', 'b')" width="auto" height="40" style="margin-left:85px;" /><br>
+             <span  class="common" style="display:none">
+          <span  style="font-family: sans-serif;">from</span>&nbsp<span id="frombusplace"></span> <br>
+
+          <span id="busdeparturetime"></span>&nbsp<span >-</span>&nbsp<span id="busarrivaltime"></span>&nbsp
+          <span >(<span id="bustime"></span>&nbsp<span style="font-family: sans-serif;">mins</span>)</span></span>
+             <span  class="loader" style="display: block">
+             	<div class="spinner">
+                <div class="bounce1"></div>
+                <div class="bounce2"></div>
+                <div class="bounce3"></div>
+              </div>
+            </span>
+        </div>
+
+        <div class="column">
+          <img src="train.png" onclick="showDirections('transit', 't')" width="auto" height="40" style="margin-left:85px;"><br>
+          <span  class="common" style="display:none">
+          <span  style="font-family: sans-serif;">from</span>&nbsp<span id="fromtrainplace"></span> <br>
+          <span id="traindeparturetime"></span>&nbsp<span>-</span>&nbsp<span id="trainarrivaltime"></span><span>&nbsp(<span id="traintime"></span>&nbsp<span style="font-family: sans-serif;">mins</span>)</span></span>
+               <span  class="loader" style="display: block">
+             	<div class="spinner">
+                <div class="bounce1"></div>
+                <div class="bounce2"></div>
+                <div class="bounce3"></div>
+              </div>
+            </span>
+        </div>
+
+        <div class="column">
+          <img src="car1.png" onclick="showDirections('driving')" width="auto" height="40" style="margin-left:35px;"><br>
+          <span  class="common" style="display:none">
+          <span  style="font-family: sans-serif;">Duration</span>&nbsp<span id="cartime"></span>&nbsp<span style="font-family: sans-serif;">mins</span></span>
+           <span  class="loader" style="display: block">
+             	<div class="spinner">
+                <div class="bounce1"></div>
+                <div class="bounce2"></div>
+                <div class="bounce3"></div>
+              </div>
+            </span> <br>
+        </div>
+        <div class="column">
+          <img src="biccycle.png" onclick="showDirections('bike')" width="auto" height="40" style="margin-left:35px;"><br>
+          <span  class="common" style="display:none">
+          <span  style="font-family: sans-serif;">Duration</span>&nbsp<span id="bicycletime"></span>&nbsp<span style="font-family: sans-serif;">mins</span></span> 
+          <span  class="loader" style="display: block">
+             	<div class="spinner">
+                <div class="bounce1"></div>
+                <div class="bounce2"></div>
+                <div class="bounce3"></div>
+              </div>
+            </span> <br>
+        </div>
+        <div class="column">
+          <img src="man.png" onclick="showDirections('walking')" width="auto" height="40" style="margin-left:35px;"><br>
+          <span  class="common" style="display:none">
+          <span style="font-family: sans-serif;">Duration</span>&nbsp<span id="walkingtime"></span></span>
+           <span  class="loader" style="display: block">
+             	<div class="spinner">
+                <div class="bounce1"></div>
+                <div class="bounce2"></div>
+                <div class="bounce3"></div>
+              </div>
+            </span><br>
+        </div>
+      </div>
+    </div>
+    <div class="slave">
+      <div id="slaveMask">
+      </div>
+      <iframe src="https://irail.be/stations/NMBS/008821006" width="100%" height="100%">
+    </div>
+  </div>
+</body>
+
+</html>
